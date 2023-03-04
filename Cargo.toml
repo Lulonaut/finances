@@ -1,0 +1,22 @@
+[package]
+name = "finances"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlx = { version = "0.6.2", features = [ "runtime-actix-native-tls" , "sqlite" ] }
+actix-web = {version = "4.3.1", default_features = false, features = ["actix-web-codegen", "macros"]}
+serde = {version = "1.0.152", default_features = false, features = ["derive"]}
+serde_json = "1.0.94"
+argon2 = "0.5.0"
+anyhow = "1.0.69"
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+
+[profile.release]
+strip = true
+
+# Reduce 'target' folder size
+[profile.dev]
+strip = true

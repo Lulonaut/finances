@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS user
     password TEXT                NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS eccount
+CREATE TABLE IF NOT EXISTS account
 (
     id   INTEGER PRIMARY KEY NOT NULL,
     name TEXT                NOT NULL,

@@ -108,7 +108,14 @@ impl<T: Serialize> Responder for ApiResult<T> {
     }
 }
 
-pub struct Error {}
+pub enum ErrorType {
+    BadRequest,
+    InternalServerError,
+}
+
+pub struct Error {
+    pub cause: ErrorType,
+}
 
 impl Debug for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -124,9 +131,15 @@ impl Display for Error {
 
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
-        ApiResult::<String>::internal_error()
-            .add_error("Internal Server error")
-            .convert_to_response()
+        return match self.cause {
+            ErrorType::BadRequest => {
+                ApiResult::<String>::error(StatusCode::UNAUTHORIZED, "Invalid Authorization")
+                    .convert_to_response()
+            }
+            ErrorType::InternalServerError => ApiResult::<String>::internal_error()
+                .add_error("Internal Server error")
+                .convert_to_response(),
+        };
     }
 }
 
@@ -134,7 +147,9 @@ macro_rules! impl_error {
     ($t:ty) => {
         impl From<$t> for Error {
             fn from(_value: $t) -> Self {
-                Error {}
+                Error {
+                    cause: ErrorType::InternalServerError,
+                }
             }
         }
     };

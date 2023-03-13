@@ -120,3 +120,42 @@ pub async fn user_auth_test(
         },
     ))
 }
+
+#[derive(Deserialize)]
+pub struct UserPasswordChangeData {
+    current_password: String,
+    new_password: String,
+}
+
+#[post("/api/user/change_password")]
+pub async fn user_change_password(
+    user_claims: UserClaims,
+    state: web::Data<AppState>,
+    data: Json<UserPasswordChangeData>,
+) -> Result<ApiResult<String>, Error> {
+    let hash_query = sqlx::query!("SELECT password FROM user WHERE id = ?", user_claims.uid)
+        .fetch_all(&state.pool)
+        .await?;
+    if hash_query.is_empty() {
+        return Ok(ApiResult::error(StatusCode::NOT_FOUND, "User not founed"));
+    }
+
+    let saved_hash = hash_query[0].password.clone();
+    if !auth::verify_hash(&saved_hash, &data.current_password) {
+        return Ok(ApiResult::error(
+            StatusCode::BAD_REQUEST,
+            "Invalid password",
+        ));
+    }
+    let new_hash = auth::hash_password(&data.new_password)?;
+
+    sqlx::query!(
+        "UPDATE user SET password = ? WHERE id = ?",
+        new_hash,
+        user_claims.uid
+    )
+    .execute(&mut state.pool.acquire().await?)
+    .await?;
+
+    Ok(ApiResult::ok())
+}

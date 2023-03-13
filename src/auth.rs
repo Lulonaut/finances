@@ -65,9 +65,19 @@ pub fn decode_jwt(jwt: &str) -> Option<i64> {
         return None;
     }
 
-    Some(decoded.unwrap().claims.uid)
+    let claims = decoded.unwrap();
+    let current_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("time went back")
+        .as_secs();
+    if current_time > claims.claims.exp {
+        return None;
+    }
+
+    Some(claims.claims.uid)
 }
 
+/// Extractor to be used on routes that require authorization. Extracts the userID if a valid JWT is present, otherwise sends back a 401 response
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserClaims {
     pub uid: i64,
@@ -81,13 +91,13 @@ impl FromRequest for UserClaims {
         let auth_header = req.headers().get(AUTHORIZATION);
         if auth_header.is_none() {
             return std::future::ready(Err(Self::Error {
-                cause: ErrorType::BadRequest,
+                cause: ErrorType::BadAuthorization,
             }));
         }
         let value = auth_header.unwrap().to_str().unwrap();
         if !value.starts_with("Bearer ") {
             return std::future::ready(Err(Self::Error {
-                cause: ErrorType::BadRequest,
+                cause: ErrorType::BadAuthorization,
             }));
         }
 
@@ -95,7 +105,7 @@ impl FromRequest for UserClaims {
         let token = &value[7..];
         match decode_jwt(token) {
             None => std::future::ready(Err(Self::Error {
-                cause: ErrorType::BadRequest,
+                cause: ErrorType::BadAuthorization,
             })),
             Some(claim) => std::future::ready(Ok(UserClaims { uid: claim })),
         }

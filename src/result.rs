@@ -6,7 +6,6 @@ use actix_web::{
     body::BoxBody, http::StatusCode, HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
     ResponseError,
 };
-use anyhow::anyhow;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ApiResult<T = ()> {
@@ -21,30 +20,21 @@ pub struct ApiResult<T = ()> {
 }
 
 impl<T: Serialize> ApiResult<T> {
-    pub fn new() -> Self {
-        Self {
-            code: 200,
-            success: true,
-            error: None,
-            data: None,
-        }
-    }
-
-    pub fn ok() -> Self {
-        Self {
-            code: 200,
-            success: true,
-            error: None,
-            data: None,
-        }
-    }
-
     pub fn internal_error() -> Self {
         Self {
             code: 500,
             success: false,
             error: None,
             data: None,
+        }
+    }
+    
+    pub fn ok() -> Self {
+        Self {
+            code: 200,
+            success: true,
+            error : None,
+            data: None
         }
     }
 
@@ -66,32 +56,10 @@ impl<T: Serialize> ApiResult<T> {
         }
     }
 
-    // pub fn code(code: StatusCode) -> Self {
-    //     Self {
-    //         code: code.as_u16(),
-    //         success: true,
-    //         error: None,
-    //         data: None,
-    //     }
-    // }
-    //
-    // pub fn code_raw(mut self, code: u16) -> Self {
-    //     self.code = code;
-    //     self
-    // }
-
     pub fn add_error<S: Into<String>>(mut self, msg: S) -> Self {
         self.error = Some(msg.into());
         self
     }
-
-    // pub fn add_data(mut self, data: T) -> Self
-    // where
-    //     T: Serialize,
-    // {
-    //     self.data = Some(data);
-    //     self
-    // }
 
     pub fn convert_to_response(mut self) -> HttpResponse {
         self.success = self.code >= 200 && self.code < 300;
@@ -109,7 +77,7 @@ impl<T: Serialize> Responder for ApiResult<T> {
 }
 
 pub enum ErrorType {
-    BadRequest,
+    BadAuthorization,
     InternalServerError,
 }
 
@@ -131,15 +99,15 @@ impl Display for Error {
 
 impl ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
-        return match self.cause {
-            ErrorType::BadRequest => {
+        match self.cause {
+            ErrorType::BadAuthorization => {
                 ApiResult::<String>::error(StatusCode::UNAUTHORIZED, "Invalid Authorization")
                     .convert_to_response()
             }
             ErrorType::InternalServerError => ApiResult::<String>::internal_error()
                 .add_error("Internal Server error")
                 .convert_to_response(),
-        };
+        }
     }
 }
 
